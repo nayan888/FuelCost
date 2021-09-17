@@ -119,6 +119,27 @@ def CreateCategories(flights_df):
 
 
 
+def loadDefaultDataset(year=None, month=None):
+    # get available dataset years
+    if year == None:
+        yearsAvailable = ft.getYears()
+        year = max(yearsAvailable)
+
+    flights_df = ft.loadPickle(year, month)
+
+    print("Loaded pickles for year ", year)
+    print("Dataframe Shape:", flights_df.shape)
+    print("Dataframe head", flights_df.head())
+
+    return flights_df
+
+
+def preProcess():
+    fileList = ft.getfilenamesForProcessing('data')
+    preprocess(fileList)
+
+
+
 # **************************************** #
 # Constants for Fuel SAF Calculations
 # all prices are in USD

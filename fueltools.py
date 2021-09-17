@@ -25,6 +25,28 @@ def getYears():
 
     return res
 
+def getMonths(yearSelection=2018):
+
+    dateDict= {}
+    directory = 'data'
+    for filename in os.listdir(directory):
+        f = os.path.join(directory, filename)
+        fname, file_extension = os.path.splitext(f)
+        if os.path.isfile(f) and file_extension=='.pkl' and "Flights_" in filename:
+            res =filename.replace("Flights_", "")
+            res=res.replace(".csv.raw.pkl", "")
+            splitDates=res.split("_")
+            date_time_obj1 = datetime.strptime(splitDates[0], '%Y%m%d')
+            year = date_time_obj1.year
+            month = date_time_obj1.month
+            if year==yearSelection:
+                dateDict[month] = dateDict.get(month,0) +1
+
+    res = [key for key, val in dateDict.items() if val>=1]
+
+
+    return res
+
 
 def getfilenamesForProcessing(directory):
     fileListGz=[]
