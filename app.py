@@ -22,10 +22,14 @@ flights_df = pp.loadDefaultDataset()
 flights_df = ft.CalculateSAFCost(flights_df)
 flights_df = ft.CalculateFuelCost(flights_df)
 flights_df = ft.CalculateTotalFuelCost(flights_df)
+flights_df = ft.CalculateTaxCost(flights_df)
+flights_df = ft.CalculateETSCost(flights_df)
+
+flights_df['TOTAL_COST'] = flights_df['SAF_COST'] + flights_df['TAX_COST'] + flights_df['ETS_COST']
 
 regions_df = pd.read_excel('data/ICAOPrefix.xlsx')
 
-memberStates = regions_df.loc[regions_df['EU_EEA_EFTA_UK'] == 'Y', ['COUNTRY']].COUNTRY.unique()
+
 
 finalDf=flights_df
 
@@ -40,47 +44,66 @@ startSummerIATA, endSummerIATA = ft.getIATASeasons(dataYear)
 
 per_ms_summer_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
         ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-    .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']] \
+    .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST','TOTAL_COST']] \
     .agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-          'TOTAL_FUEL_COST': ['mean', 'std']})
+          'TOTAL_FUEL_COST': ['mean', 'std'], 'TAX_COST': ['mean', 'std'], 'ETS_COST': ['mean', 'std'], 'TOTAL_COST': ['mean', 'std'] })
 per_ms_summer_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
         ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-                                  .groupby(['ADEP_COUNTRY'])[['SAF_COST']] \
-                                  .describe(percentiles=[0.25, 0.5, 0.75]).iloc[:, 4:7]
+                                  .groupby(['ADEP_COUNTRY'])[['SAF_COST','TAX_COST', 'ETS_COST']] \
+                                  .describe().filter(like='%')
 
 per_ms_summer_out = pd.concat([per_ms_summer_out, per_ms_summer_out_quantiles], axis=1)
 
 per_ms_winter_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
         ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-    .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']] \
+    .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST','TOTAL_COST']] \
     .agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-          'TOTAL_FUEL_COST': ['mean', 'std']})
+          'TOTAL_FUEL_COST': ['mean', 'std'], 'TAX_COST': ['mean', 'std'], 'ETS_COST': ['mean', 'std'], 'TOTAL_COST': ['mean', 'std']})
 
 per_ms_winter_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
         ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-                                  .groupby(['ADEP_COUNTRY'])[['SAF_COST']] \
-                                  .describe(percentiles=[0.25, 0.5, 0.75]).iloc[:, 4:7]
+                                  .groupby(['ADEP_COUNTRY'])[['SAF_COST','TAX_COST', 'ETS_COST']] \
+                                  .describe().filter(like='%')
 
 per_ms_winter_out = pd.concat([per_ms_winter_out, per_ms_winter_out_quantiles], axis=1)
 
 per_ms_Annual_out = ((per_ms_summer_out * 7) + (per_ms_winter_out * 5))
 per_ms_Annual_out.iloc[:, 1:] = per_ms_Annual_out.iloc[:, 1:] / 12
 
-eu_avg = ms_df_outermost[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']].agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-                                                                                        'TOTAL_FUEL_COST': ['mean', 'std']})
+# eu_avg = ms_df_outermost[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST','TAX_COST', 'ETS_COST','TOTAL_COST']].agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
+#                                                                                         'TOTAL_FUEL_COST': ['mean', 'std'], 'TAX_COST': ['mean', 'std'], 'ETS_COST': ['mean', 'std'], 'TOTAL_COST': ['mean', 'std']})
 
-eu_avg_quantiles = ms_df_outermost[['SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']].describe(percentiles=[0.25, 0.5, 0.75])
+eu_avg_quantiles = ms_df_outermost[['SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST','TAX_COST', 'ETS_COST','TOTAL_COST']].describe()
 
-per_ms_Annual_out.loc['EU'] = (int(eu_avg.loc['size', 'ECTRL_ID']),
-                               eu_avg.loc['mean', 'SAF_COST'],
-                               eu_avg.loc['std', 'SAF_COST'],
-                               eu_avg.loc['mean', 'FUEL_COST'],
-                               eu_avg.loc['std', 'FUEL_COST'],
-                               eu_avg.loc['mean', 'TOTAL_FUEL_COST'],
-                               eu_avg.loc['std', 'TOTAL_FUEL_COST'],
+per_ms_Annual_out.loc['EU'] = (int(eu_avg_quantiles.loc['count', 'SAF_COST']),
+                               eu_avg_quantiles.loc['mean', 'SAF_COST'],
+                               eu_avg_quantiles.loc['std', 'SAF_COST'],
+                               eu_avg_quantiles.loc['mean', 'FUEL_COST'],
+                               eu_avg_quantiles.loc['std', 'FUEL_COST'],
+                               eu_avg_quantiles.loc['mean', 'TOTAL_FUEL_COST'],
+                               eu_avg_quantiles.loc['std', 'TOTAL_FUEL_COST'],
+                               eu_avg_quantiles.loc['mean', 'TAX_COST'],
+                               eu_avg_quantiles.loc['std', 'TAX_COST'],
+                               eu_avg_quantiles.loc['mean', 'ETS_COST'],
+                               eu_avg_quantiles.loc['std', 'ETS_COST'],
+                               eu_avg_quantiles.loc['mean', 'TOTAL_COST'],
+                               eu_avg_quantiles.loc['std', 'TOTAL_COST'],
                                eu_avg_quantiles.loc['25%', 'SAF_COST'],
                                eu_avg_quantiles.loc['50%', 'SAF_COST'],
-                               eu_avg_quantiles.loc['75%', 'SAF_COST'])
+                               eu_avg_quantiles.loc['75%', 'SAF_COST'],
+
+                               eu_avg_quantiles.loc['25%', 'TAX_COST'],
+                               eu_avg_quantiles.loc['50%', 'TAX_COST'],
+                               eu_avg_quantiles.loc['75%', 'TAX_COST'],
+
+                               eu_avg_quantiles.loc['25%', 'ETS_COST'],
+                               eu_avg_quantiles.loc['50%', 'ETS_COST'],
+                               eu_avg_quantiles.loc['75%', 'ETS_COST']
+
+                               )
+
+
+
 
 app = dash.Dash(__name__)
 
@@ -107,6 +130,15 @@ data = [
            y=per_ms_Annual_out['SAF_COST_mean'],
            error_y=dict(type='data', array=per_ms_Annual_out['SAF_COST_std'].to_list()), text=per_ms_Annual_out['SAF_COST_mean']
            ),
+    go.Bar(name='TAX',
+           x=per_ms_Annual_out['ADEP_COUNTRY'],
+           y=per_ms_Annual_out['TAX_COST_mean'],
+           ),
+    go.Bar(name='ETS',
+           x=per_ms_Annual_out['ADEP_COUNTRY'],
+           y=per_ms_Annual_out['ETS_COST_mean'],
+
+           ),
     go.Bar(name='JET A1',
            x=per_ms_Annual_out['ADEP_COUNTRY'],
            y=per_ms_Annual_out['FUEL_COST_mean'], visible='legendonly'
@@ -114,6 +146,10 @@ data = [
     go.Bar(name='Total Fuel Cost',
            x=per_ms_Annual_out['ADEP_COUNTRY'],
            y=per_ms_Annual_out['TOTAL_FUEL_COST_mean'], visible='legendonly'
+           ),
+    go.Bar(name='Total Cost of Measures',
+           x=per_ms_Annual_out['ADEP_COUNTRY'],
+           y=per_ms_Annual_out['TOTAL_COST_mean'], visible='legendonly'
            )
 ]
 
@@ -153,14 +189,17 @@ app.layout = html.Div([
                 options=[{'label': i, 'value': i} for i in toSelection],
                 value=fromSelection[3]
             ),
-            # html.P('Include Close outermost regions', style={"height": "auto", "margin-bottom": "auto"}),
-            # dcc.Checklist(
-            #     id='outerCheck',
-            #     options=[
-            #         {'label': 'Close Outermost Regions', 'value': 'OUTER_CLOSE'}
-            #     ],
-            #     value=['OUTER_CLOSE']
-            # ),
+            html.P('Include Close outermost regions', style={"height": "auto", "margin-bottom": "auto"}),
+            dcc.Checklist(
+                id='outerCheck',
+                options=[
+                    {'label': 'Close Outermost Regions', 'value': 'OUTER_CLOSE'},
+                    {'label': 'Outermost Regions', 'value': 'OUTERMOST_REGIONS'}
+
+                ],
+                value=[],
+                style={"display":"block",'border':'2px blue solid'}
+            ),
             html.P('Select Market Segment', style={"height": "auto", "margin-bottom": "auto"}),
             dcc.Dropdown(
                 id='marketSelection',
@@ -180,6 +219,18 @@ app.layout = html.Div([
                           dcc.Input(id="emissionsPrice", type="number", placeholder=60, min=0, max=1000, step=1, value=60, ), ]),
                 html.Div([html.P('Emissions (%)', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="emissionsPercent", type="number", placeholder=50, min=0, max=100, step=1, value=50, ), ]),
+
+                html.Div([
+                html.P('Include Standard Deviation Error Bars', style={"height": "auto", "margin-bottom": "auto"}),
+                dcc.RadioItems(
+                    id='errorBars',
+                    options=[
+                        {'label': 'Yes', 'value': 'errorBarsYes'},
+                        {'label': 'No', 'value': 'errorBarsNo'}
+                    ],
+                    value='errorBarsNo',
+                    labelStyle={'display': 'inline-block'}
+                ),]),
             ], style=dict(display='flex', flexWrap='wrap', width=400)),
 
             html.P([]),
@@ -187,7 +238,7 @@ app.layout = html.Div([
                                   id='submitButton'), ]),
 
         ],
-            style={'width': '15%', 'display': 'inline-block'}),
+            style={'width': '20%', 'display': 'inline-block'}),
 
         html.Div([
             dcc.Graph(
@@ -210,7 +261,7 @@ app.layout = html.Div([
                 page_size=50,
             ),
             html.Div(id='datatable-interactivity-container')
-        ], style={'width': '84%', 'float': 'right', 'display': 'inline-block'})
+        ], style={'width': '79%', 'float': 'right', 'display': 'inline-block'})
     ], style={
         'padding': '10px 5px'
     }),
@@ -226,70 +277,102 @@ app.layout = html.Div([
      dash.dependencies.Input('marketSelection', 'value'),
      dash.dependencies.Input('safPrice', 'value'),
      dash.dependencies.Input('blendingMandate', 'value'),
-     dash.dependencies.Input('jetPrice', 'value')])
-def update_graph(clicks, fromSel, toSel, market, safPrice, blending, jetPrice):
+     dash.dependencies.Input('jetPrice', 'value'),
+     dash.dependencies.Input('taxRate', "value"),
+     dash.dependencies.Input('emissionsPercent', 'value'),
+     dash.dependencies.Input('emissionsPrice', 'value'),
+     dash.dependencies.Input('errorBars', 'value'),
+     dash.dependencies.Input('outerCheck', 'value')
 
-    flights_df = ft.CalculateSAFCost(finalDf, costOfSafFuelPerKg = safPrice, safBlendingMandate = blending/100 )
-    flights_df = ft.CalculateFuelCost(flights_df, costOfJetFuelPerKg=jetPrice, safBlendingMandate=blending/100)
+     ])
+def update_graph(clicks, fromSel, toSel, market, safPrice, blending, jetPrice, taxRate, emissionsPercent, emissionsPrice, errorBars, outerCheck):
+
+    flights_df = finalDf
+    flights_df = ft.CalculateSAFCost(flights_df, costOfSafFuelPerKg = safPrice, safBlendingMandate = blending/100 )
+    flights_df = ft.CalculateFuelCost(flights_df, costOfJetFuelPerKg = jetPrice, safBlendingMandate = blending/100)
     flights_df = ft.CalculateTotalFuelCost(flights_df)
+    flights_df = ft.CalculateTaxCost(flights_df, FuelTaxRateEurosPerGJ = taxRate, blendingMandate=blending/100 )
+    flights_df = ft.CalculateETSCost(flights_df, safBlendingMandate=blending/100, ETSCostpertonne = emissionsPrice, ETSpercentage = emissionsPercent )
 
-    regions_df = pd.read_excel('data/ICAOPrefix.xlsx')
+    flights_df['TOTAL_COST'] = flights_df['SAF_COST'] + flights_df['TAX_COST'] + flights_df['ETS_COST']
 
-    memberStates = regions_df.loc[regions_df['EU_EEA_EFTA_UK'] == 'Y', ['COUNTRY']].COUNTRY.unique()
+    #Build query based on input values
+    if outerCheck=='OUTER_CLOSE':
+        outerQ = '=="Y"'
+    elif outerCheck=='OUTERMOST_REGIONS':
+        outerQ = 'test'
+    else:
+        dfquery = 'ADEP_' + fromSel + '=="Y"'  + ' & ' + \
+                  'ADES_' + toSel   + '=="Y"'  + ' & ' + \
+                  'not ((ADEP_OUTERMOST_REGIONS == "Y"  &  ADES_OUTERMOST_REGIONS == "Y" ))' + ' & ' + \
+                  'STATFOR_Market_Segment in @market'
 
-    # ms_df = flights_df[(flights_df.ADEP_EU_EEA_EFTA_UK == 'Y') & (flights_df.ADES_EU_EEA_EFTA_UK == 'Y') & (
-    #     flights_df.STATFOR_Market_Segment.isin(['Lowcost', 'Traditional Scheduled']))]
-    ms_df_outermost = flights_df[
-        ((flights_df.ADEP_EU_EEA_EFTA_UK == 'Y') | (flights_df.ADEP_OUTER_CLOSE == 'Y')) &
-        ((flights_df.ADES_EU_EEA_EFTA_UK == 'Y') | (flights_df.ADES_OUTER_CLOSE == 'Y')) &
-        ~((flights_df.ADEP_OUTER_CLOSE == 'Y') & (flights_df.ADES_OUTER_CLOSE == 'Y')) &
-        (flights_df.STATFOR_Market_Segment.isin(market))]
+    ms_df_outermost=flights_df.query(dfquery)
+
+    # ms_df_outermost = flights_df[
+    #     ((flights_df.ADEP_EU_EEA_EFTA_UK == 'Y') | (flights_df.ADEP_OUTER_CLOSE == 'Y')) &
+    #     ((flights_df.ADES_EU_EEA_EFTA_UK == 'Y') | (flights_df.ADES_OUTER_CLOSE == 'Y')) &
+    #     ~((flights_df.ADEP_OUTER_CLOSE == 'Y') & (flights_df.ADES_OUTER_CLOSE == 'Y')) &
+    #     (flights_df.STATFOR_Market_Segment.isin(market))]
 
     startSummerIATA, endSummerIATA = ft.getIATASeasons(dataYear)
 
     per_ms_summer_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-        .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']] \
+        .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
         .agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-              'TOTAL_FUEL_COST': ['mean', 'std']})
+              'TOTAL_FUEL_COST': ['mean', 'std'], 'TAX_COST': ['mean', 'std'], 'ETS_COST': ['mean', 'std'], 'TOTAL_COST': ['mean', 'std']})
     per_ms_summer_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-                                      .groupby(['ADEP_COUNTRY'])[['SAF_COST']] \
-                                      .describe(percentiles=[0.25, 0.5, 0.75]).iloc[:, 4:7]
+        .groupby(['ADEP_COUNTRY'])[['SAF_COST', 'TAX_COST', 'ETS_COST']] \
+        .describe().filter(like='%')
 
     per_ms_summer_out = pd.concat([per_ms_summer_out, per_ms_summer_out_quantiles], axis=1)
 
     per_ms_winter_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-        .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']] \
+        .groupby(['ADEP_COUNTRY'])[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
         .agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-              'TOTAL_FUEL_COST': ['mean', 'std']})
+              'TOTAL_FUEL_COST': ['mean', 'std'], 'TAX_COST': ['mean', 'std'], 'ETS_COST': ['mean', 'std'], 'TOTAL_COST': ['mean', 'std']})
 
     per_ms_winter_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-                                      .groupby(['ADEP_COUNTRY'])[['SAF_COST']] \
-                                      .describe(percentiles=[0.25, 0.5, 0.75]).iloc[:, 4:7]
+        .groupby(['ADEP_COUNTRY'])[['SAF_COST', 'TAX_COST', 'ETS_COST']] \
+        .describe().filter(like='%')
 
     per_ms_winter_out = pd.concat([per_ms_winter_out, per_ms_winter_out_quantiles], axis=1)
 
     per_ms_Annual_out = ((per_ms_summer_out * 7) + (per_ms_winter_out * 5))
     per_ms_Annual_out.iloc[:, 1:] = per_ms_Annual_out.iloc[:, 1:] / 12
 
-    eu_avg = ms_df_outermost[['ECTRL_ID', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']].agg({'ECTRL_ID': 'size', 'SAF_COST': ['mean', 'std'], 'FUEL_COST': ['mean', 'std'],
-                                                                                            'TOTAL_FUEL_COST': ['mean', 'std']})
+    eu_avg_quantiles = ms_df_outermost[['SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
 
-    eu_avg_quantiles = ms_df_outermost[['SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST']].describe(percentiles=[0.25, 0.5, 0.75])
-
-    per_ms_Annual_out.loc['EU'] = (int(eu_avg.loc['size', 'ECTRL_ID']),
-                                   eu_avg.loc['mean', 'SAF_COST'],
-                                   eu_avg.loc['std', 'SAF_COST'],
-                                   eu_avg.loc['mean', 'FUEL_COST'],
-                                   eu_avg.loc['std', 'FUEL_COST'],
-                                   eu_avg.loc['mean', 'TOTAL_FUEL_COST'],
-                                   eu_avg.loc['std', 'TOTAL_FUEL_COST'],
+    per_ms_Annual_out.loc['EU'] = (int(eu_avg_quantiles.loc['count', 'SAF_COST']),
+                                   eu_avg_quantiles.loc['mean', 'SAF_COST'],
+                                   eu_avg_quantiles.loc['std', 'SAF_COST'],
+                                   eu_avg_quantiles.loc['mean', 'FUEL_COST'],
+                                   eu_avg_quantiles.loc['std', 'FUEL_COST'],
+                                   eu_avg_quantiles.loc['mean', 'TOTAL_FUEL_COST'],
+                                   eu_avg_quantiles.loc['std', 'TOTAL_FUEL_COST'],
+                                   eu_avg_quantiles.loc['mean', 'TAX_COST'],
+                                   eu_avg_quantiles.loc['std', 'TAX_COST'],
+                                   eu_avg_quantiles.loc['mean', 'ETS_COST'],
+                                   eu_avg_quantiles.loc['std', 'ETS_COST'],
+                                   eu_avg_quantiles.loc['mean', 'TOTAL_COST'],
+                                   eu_avg_quantiles.loc['std', 'TOTAL_COST'],
                                    eu_avg_quantiles.loc['25%', 'SAF_COST'],
                                    eu_avg_quantiles.loc['50%', 'SAF_COST'],
-                                   eu_avg_quantiles.loc['75%', 'SAF_COST'])
+                                   eu_avg_quantiles.loc['75%', 'SAF_COST'],
+
+                                   eu_avg_quantiles.loc['25%', 'TAX_COST'],
+                                   eu_avg_quantiles.loc['50%', 'TAX_COST'],
+                                   eu_avg_quantiles.loc['75%', 'TAX_COST'],
+
+                                   eu_avg_quantiles.loc['25%', 'ETS_COST'],
+                                   eu_avg_quantiles.loc['50%', 'ETS_COST'],
+                                   eu_avg_quantiles.loc['75%', 'ETS_COST']
+
+                                   )
 
     app = dash.Dash(__name__)
 
@@ -301,11 +384,12 @@ def update_graph(clicks, fromSel, toSel, market, safPrice, blending, jetPrice):
 
     per_ms_Annual_out = per_ms_Annual_out.reset_index()
 
+
     data = [
         go.Bar(name='SAF',
                x=per_ms_Annual_out['ADEP_COUNTRY'],
                y=per_ms_Annual_out['SAF_COST_mean'],
-               error_y=dict(type='data', array=per_ms_Annual_out['SAF_COST_std'].to_list()), text=per_ms_Annual_out['SAF_COST_mean']
+               # error_y=dict(type='data', array=per_ms_Annual_out['SAF_COST_std'].to_list()), text=per_ms_Annual_out['SAF_COST_mean']
                ),
         go.Bar(name='JET A1',
                x=per_ms_Annual_out['ADEP_COUNTRY'],

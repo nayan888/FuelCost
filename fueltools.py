@@ -143,3 +143,36 @@ def getIATASeasons(setyear):
                                                                     weekday=relativedelta.SA(-1)) + dt.timedelta(days=1)
 
     return startSummer, endSummer
+
+
+def CalculateTaxCost(flights_df, FuelTaxRateEurosPerGJ = 2.15 , blendingMandate=0.02 ):
+    # *************************************************** #
+    # Constants for Fuel TAX Calculations
+    # all prices are in Euros/GJ
+    # 2023 = 0 Tax rate
+    # 2024 = 1.075    2025 = 2.15 etc
+
+    # Tax rate in 2033
+    MaxFuelTaxRateEurosPerGJ = 10.75
+    # Using rate for 2025 to match the SAF mandate
+
+
+    # Current Exchange rate from Euros to USD
+    EurosToUsdExchangeRate = 1.182
+
+    # Tax rate in Euros/kg
+    FuelTaxRateEurosPerKg = (46.4 / 1000) * FuelTaxRateEurosPerGJ
+    FuelTaxRateUsdPerKg = FuelTaxRateEurosPerKg * EurosToUsdExchangeRate
+    # *************************************************** #
+
+    flights_df['TAX_COST'] = flights_df['FUEL'] * (1-blendingMandate) * FuelTaxRateUsdPerKg
+
+    return flights_df
+
+def CalculateETSCost(flights_df, safBlendingMandate=0.02, ETSCostpertonne = 62, ETSpercentage = 50):
+
+    ETSPricePerKg = ETSCostpertonne/1000
+
+    flights_df['ETS_COST'] = flights_df['FUEL']* 3.15 * (1-safBlendingMandate) * ETSPricePerKg * ETSpercentage/100
+
+    return flights_df

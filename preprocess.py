@@ -150,25 +150,6 @@ SafBlendingMandate = 0.02
 
 
 
-# *************************************************** #
-# Constants for Fuel TAX Calculations
-# all prices are in Euros/GJ
-# 2023 = 0 Tax rate
-# 2024 = 1.075    2025 = 2.15 etc
-
-#Tax rate in 2033
-MaxFuelTaxRateEurosPerGJ = 10.75
-#Using rate for 2025 to match the SAF mandate
-FuelTaxRateEurosPerGJ = 2.15
-
-#Current Exchange rate from Euros to USD
-EurosToUsdExchangeRate = 1.19
-
-#Tax rate in Euros/kg
-FuelTaxRateEurosPerKg = (46.4/1000) * FuelTaxRateEurosPerGJ
-FuelTaxRateUsdPerKg = FuelTaxRateEurosPerKg * EurosToUsdExchangeRate
-# *************************************************** #
-
 
 
 
