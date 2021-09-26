@@ -3,6 +3,7 @@ import os
 import fueltools as ft
 
 
+
 def loadFile(filename):
     global header_list, airc_ls, flights_df
     print("Processing File:", filename)
@@ -30,7 +31,10 @@ def loadFile(filename):
     print(filename, " contains: ", flights_df.shape)
     return flights_df
 
-def preprocess(fnamelist):
+def pre_process():
+
+    fnamelist = ft.getfilenamesForProcessing('data')
+
     # Load acperf
     header_list = ["KEY","BK_AC_TYPE_ID","ICAO_TYPE_CODE","AC_CATEGORY","EQV_TYPE","EQV_NAME","ICAO_ENGINE_DESC","CO2_COEFF","MASS","BAND_FROM_NM","BAND_TO_NM","BAND_FLOOR_NM","FUEL_TOT","FUEL_TOT_MARG_RATE","CORR_FACTOR","CALC_RETURN_CODE","TINV","S","N","X_BAR","SXX","E","ERROR_TYPE","MASS_RATIO","ERROR_RATE_FUEL_PER_NM","AO_FUEL_VERSION_ID","CREA_DATE","CREA_NOTE","VALID_FROM","VALID_TO"]
     airc_ls = []
@@ -134,9 +138,8 @@ def loadDefaultDataset(year=None, month=None):
     return flights_df
 
 
-def preProcess():
-    fileList = ft.getfilenamesForProcessing('data')
-    preprocess(fileList)
+
+
 
 
 

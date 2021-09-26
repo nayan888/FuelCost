@@ -4,6 +4,10 @@ import pandas as pd
 from dateutil import relativedelta
 import datetime as dt
 
+
+# Current Exchange rate from Euros to USD
+EurosToUsdExchangeRate = 1.182
+
 def getYears():
 
     dateDict= {}
@@ -157,8 +161,8 @@ def CalculateTaxCost(flights_df, FuelTaxRateEurosPerGJ = 2.15 , blendingMandate=
     # Using rate for 2025 to match the SAF mandate
 
 
-    # Current Exchange rate from Euros to USD
-    EurosToUsdExchangeRate = 1.182
+
+
 
     # Tax rate in Euros/kg
     FuelTaxRateEurosPerKg = (46.4 / 1000) * FuelTaxRateEurosPerGJ
@@ -171,7 +175,7 @@ def CalculateTaxCost(flights_df, FuelTaxRateEurosPerGJ = 2.15 , blendingMandate=
 
 def CalculateETSCost(flights_df, safBlendingMandate=0.02, ETSCostpertonne = 62, ETSpercentage = 50):
 
-    ETSPricePerKg = ETSCostpertonne/1000
+    ETSPricePerKg = ETSCostpertonne/1000 * EurosToUsdExchangeRate
 
     flights_df['ETS_COST'] = flights_df['FUEL']* 3.15 * (1-safBlendingMandate) * ETSPricePerKg * ETSpercentage/100
 
