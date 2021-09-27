@@ -1,5 +1,8 @@
 import pandas as pd
 import os
+
+from numpy import dtype
+
 import fueltools as ft
 
 
@@ -15,31 +18,31 @@ def loadFile(filename):
                    "ACTUAL_OFF_BLOCK_TIME", "ACTUAL_ARRIVAL_TIME", "AC_Type", "AC_Operator", "AC_Registration",
                    "ICAO_Flight_Type", "STATFOR_Market_Segment", "Requested_FL", "Actual_Distance_Flown"]
     airc_ls = []
-    df_chunk = pd.read_csv(fname,
-                           parse_dates=['FILED_OFF_BLOCK_TIME', 'FILED_ARRIVAL_TIME', 'ACTUAL_OFF_BLOCK_TIME',
-                                        'ACTUAL_ARRIVAL_TIME'], dayfirst=True, compression='gzip',
-                           names=header_list, skiprows=1, chunksize=10000, nrows=loadrows,
-                           dtype={'STATFOR_Market_Segment': 'category', 'AC_Type': 'category',
-                                  'ICAO_Flight_Type': 'category', 'ADES': 'category', 'ADEP': 'category'})
-    iC = 0
-    for chunk in df_chunk:
-        airc_ls.append(chunk)
-        print("Chunk:", iC)
-        print("Chunk:", chunk.shape)
-        iC = iC + 1
-    flights_df = pd.concat(airc_ls)
+    flights_df = pd.read_csv(fname,
+                            parse_dates=['FILED_OFF_BLOCK_TIME'], # 'FILED_ARRIVAL_TIME', 'ACTUAL_OFF_BLOCK_TIME','ACTUAL_ARRIVAL_TIME'],
+                            dayfirst=True, compression='gzip',
+                            usecols=["ECTRL_ID", "ADEP", "ADES", "FILED_OFF_BLOCK_TIME", "AC_Type", "AC_Operator", "STATFOR_Market_Segment", "Actual_Distance_Flown"],
+                            names=header_list, skiprows=1,  nrows=loadrows, #chunksize=10000,
+                            dtype={'STATFOR_Market_Segment': 'category', 'AC_Type': 'category',
+                                   'ADES': 'category', 'ADEP': 'category', 'AC_Operator': 'category', 'Actual_Distance_Flown': 'int16' })
+
     print(filename, " contains: ", flights_df.shape)
     return flights_df
 
 def pre_process():
 
     fnamelist = ft.getfilenamesForProcessing('data')
+    if len(fnamelist)==0:
+        return
+
 
     # Load acperf
     header_list = ["KEY","BK_AC_TYPE_ID","ICAO_TYPE_CODE","AC_CATEGORY","EQV_TYPE","EQV_NAME","ICAO_ENGINE_DESC","CO2_COEFF","MASS","BAND_FROM_NM","BAND_TO_NM","BAND_FLOOR_NM","FUEL_TOT","FUEL_TOT_MARG_RATE","CORR_FACTOR","CALC_RETURN_CODE","TINV","S","N","X_BAR","SXX","E","ERROR_TYPE","MASS_RATIO","ERROR_RATE_FUEL_PER_NM","AO_FUEL_VERSION_ID","CREA_DATE","CREA_NOTE","VALID_FROM","VALID_TO"]
     airc_ls = []
-    acperf_df = pd.read_csv('data/acperfDB.csv' , names=header_list, skiprows=1)
-    acperf_df = pd.read_excel('data/acperfDB.xlsx', names=header_list, skiprows=1)
+    #acperf_df = pd.read_csv('data/acperfDB.csv' , names=header_list, skiprows=1)
+    acperf_df = pd.read_excel('data/acperfDB.xlsx', names=header_list, skiprows=1,
+                              usecols=["KEY","CO2_COEFF","FUEL_TOT","FUEL_TOT_MARG_RATE","CORR_FACTOR"],
+                              dtype={'KEY':'category', 'CO2_COEFF': 'float32', 'FUEL_TOT': 'float32', 'FUEL_TOT_MARG_RATE': 'float32', 'CORR_FACTOR':'float32' })
 
     print("Ac Performance File contains: ", acperf_df.shape)
 
@@ -60,13 +63,13 @@ def pre_process():
                 flights_df=flights_df.join(acperf_df.set_index('KEY'), on ='AC_Type', how='inner')
 
                 print("Shape after join",flights_df.shape)
-
+                flights_df['AC_Type'] = flights_df['AC_Type'].astype('category')
 
 
                 flights_df['FUEL'] = ((flights_df['FUEL_TOT'] + (flights_df['Actual_Distance_Flown'] * flights_df['FUEL_TOT_MARG_RATE'])) * flights_df['CORR_FACTOR'] )
                 flights_df['EMISSIONS'] = flights_df['CO2_COEFF'] * flights_df['FUEL']
 
-                flights_df=flights_df.drop(["BK_AC_TYPE_ID","EQV_TYPE","EQV_NAME","ICAO_ENGINE_DESC","MASS","BAND_FROM_NM","BAND_TO_NM","BAND_FLOOR_NM","CALC_RETURN_CODE","TINV","S","N","X_BAR","SXX","E","ERROR_TYPE","MASS_RATIO","ERROR_RATE_FUEL_PER_NM","AO_FUEL_VERSION_ID","CREA_DATE","CREA_NOTE","VALID_FROM","VALID_TO"], axis=1)
+                # flights_df=flights_df.drop(["BK_AC_TYPE_ID","EQV_TYPE","EQV_NAME","ICAO_ENGINE_DESC","MASS","BAND_FROM_NM","BAND_TO_NM","BAND_FLOOR_NM","CALC_RETURN_CODE","TINV","S","N","X_BAR","SXX","E","ERROR_TYPE","MASS_RATIO","ERROR_RATE_FUEL_PER_NM","AO_FUEL_VERSION_ID","CREA_DATE","CREA_NOTE","VALID_FROM","VALID_TO"], axis=1)
 
                 flights_df=CreateCategories(flights_df)
 
@@ -119,6 +122,12 @@ def CreateCategories(flights_df):
     icaoPrefixCategories.columns = 'ADES_' + icaoPrefixCategories.columns
     flights_df = flights_df.join(icaoPrefixCategories.set_index('ADES_PREFIX'), on='ADES_PREFIX', how='inner',
                                  rsuffix="ADES")
+
+    #Change all into categories
+    for colName in ['ADEP_PREFIX', 'ADES_PREFIX', 'ADEP_COUNTRY', 'ADEP_EU_EEA_EFTA', 'ADEP_ECAC', 'ADEP_OUTERMOST_REGIONS', 'ADEP_EU_EEA_EFTA_UK',
+                    'ADEP_OUTER_CLOSE', 'ADES_COUNTRY', 'ADES_EU_EEA_EFTA', 'ADES_ECAC', 'ADES_OUTERMOST_REGIONS', 'ADES_EU_EEA_EFTA_UK', 'ADES_OUTER_CLOSE']:
+        flights_df[colName] = flights_df[colName].astype('category')
+
     return flights_df
 
 
@@ -131,9 +140,14 @@ def loadDefaultDataset(year=None, month=None):
 
     flights_df = ft.loadPickle(year, month)
 
+    for colName in  ['ADEP', 'ADES', 'AC_Type', 'AC_Operator', 'STATFOR_Market_Segment', 'ADEP_PREFIX', 'ADES_PREFIX', 'ADEP_COUNTRY', 'ADEP_EU_EEA_EFTA', 'ADEP_ECAC', 'ADEP_OUTERMOST_REGIONS', 'ADEP_EU_EEA_EFTA_UK', 'ADEP_OUTER_CLOSE', 'ADES_COUNTRY', 'ADES_EU_EEA_EFTA', 'ADES_ECAC', 'ADES_OUTERMOST_REGIONS', 'ADES_EU_EEA_EFTA_UK', 'ADES_OUTER_CLOSE']:
+        flights_df[colName] = flights_df[colName].astype('category')
+
     print("Loaded pickles for year ", year)
     print("Dataframe Shape:", flights_df.shape)
     print("Dataframe head", flights_df.head())
+
+
 
     return flights_df
 

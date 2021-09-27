@@ -28,7 +28,7 @@ app.html_layout  = """<!DOCTYPE html>
         </script>
         </head>
 </html>"""
-
+pp.pre_process()
 
 dataYear = 2018
 flights_df = pp.loadDefaultDataset()
