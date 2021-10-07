@@ -711,5 +711,5 @@ app.index_string = """<!DOCTYPE html>
 </html>"""
 
 if __name__ == '__main__':
-   app.run_server(debug=True)
-   #application.run()
+   #app.run_server(debug=True)
+   application.run()
