@@ -167,7 +167,7 @@ app.layout = html.Div([
                           dcc.Input(id="yearGDP", type="number", placeholder=2025, min=2021, max=2080, step=1, value=2025,debounce=True ), ]),
                 html.Div([html.P('GDP Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="gdpGrowth", type="number", placeholder=1.09, min=-200, max=20, value=1.09, debounce=True), ]),
-
+                dcc.Checklist(id="extrapolateRet", options=[{'label': 'Extrapolate Return Leg', 'value': 'Yes'}], value=['Yes'])
 
             ], style=dict(display='flex', flexWrap='wrap', width='auto')),
 
@@ -187,9 +187,11 @@ app.layout = html.Div([
                 id='Gdp_graph',
 
             ),
+            dcc.Dropdown(id='heatSel', multi=True, clearable=False,searchable=True),
             dcc.Graph(
                 id='connHeatMap'
             ),
+            dcc.Store(id='heatMapdf'),
 
             dash_table.DataTable(
                 id='table',
@@ -223,7 +225,11 @@ application = app.server
      dash.dependencies.Output('Gdp_graph', 'figure'),
      dash.dependencies.Output('table', 'data'),
      dash.dependencies.Output('table', 'columns'),
-     dash.dependencies.Output('connHeatMap', 'figure')],
+     #dash.dependencies.Output('connHeatMap', 'figure'),
+     dash.dependencies.Output('heatSel', 'options'),
+     dash.dependencies.Output('heatSel', 'value'),
+     dash.dependencies.Output('heatMapdf', 'data')
+     ],
     [dash.dependencies.State('monthSelection', 'value'),
      dash.dependencies.State('fromSelection', 'value'),
      dash.dependencies.State('toSelection', 'value'),
@@ -239,12 +245,13 @@ application = app.server
      dash.dependencies.State('groupSelection', 'value'),
      dash.dependencies.State('yearGDP', 'value'),
      dash.dependencies.State('gdpGrowth' ,'value'),
-     dash.dependencies.Input('submitButton', 'n_clicks')
+     dash.dependencies.Input('submitButton', 'n_clicks'),
+     dash.dependencies.State('extrapolateRet', 'value')
 
      ])
 def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice, taxRate,
                  emissionsPercent, emissionsPrice, outerCheck, yearSelected, groupSel,
-                 yearGDP, gdpGrowth, nclicks):
+                 yearGDP, gdpGrowth, nclicks, extrapolateRet):
 
     if nclicks in [0, None]:
         raise PreventUpdate
@@ -407,31 +414,35 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     app = dash.Dash(__name__)
     per_ms_Annual_out=per_ms_Annual_out.dropna()
 
+    indexList =  per_ms_Annual_out.index.tolist()
+
     if outerCheck == 'OUTER_CLOSE' and groupSel=='ADEP_COUNTRY':
-        # Merge Spanish Outermost Regions
-        multCa = per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] / \
-                 (per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] + per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'])
-        multSp = per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'] / \
-                 (per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] + per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'])
+        if 'Canary Islands' in indexList:
+            # Merge Spanish Outermost Regions
+            multCa = per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] / \
+                     (per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] + per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'])
+            multSp = per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'] / \
+                     (per_ms_Annual_out.loc['Canary Islands', 'ECTRL_ID_size'] + per_ms_Annual_out.loc['Spain', 'ECTRL_ID_size'])
 
-        per_ms_Annual_out.loc['Spain', per_ms_Annual_out.columns.str.contains('mean|std|%')] = per_ms_Annual_out.loc['Spain', per_ms_Annual_out.columns.str.contains('mean|std|%')] * multSp
-        caRow = per_ms_Annual_out.loc[['Canary Islands']]
-        caRow.loc['Canary Islands', caRow.columns.str.contains('mean|std|%')] = caRow.loc['Canary Islands', caRow.columns.str.contains('mean|std|%')] * multCa
-        per_ms_Annual_out.loc['Spain'] = per_ms_Annual_out.loc['Spain'] + caRow.loc['Canary Islands']
+            per_ms_Annual_out.loc['Spain', per_ms_Annual_out.columns.str.contains('mean|std|%')] = per_ms_Annual_out.loc['Spain', per_ms_Annual_out.columns.str.contains('mean|std|%')] * multSp
+            caRow = per_ms_Annual_out.loc[['Canary Islands']]
+            caRow.loc['Canary Islands', caRow.columns.str.contains('mean|std|%')] = caRow.loc['Canary Islands', caRow.columns.str.contains('mean|std|%')] * multCa
+            per_ms_Annual_out.loc['Spain'] = per_ms_Annual_out.loc['Spain'] + caRow.loc['Canary Islands']
 
-        # Merge Portugese Close regions
-        multAz = per_ms_Annual_out.loc['Azores', 'ECTRL_ID_size'] / \
-                 (per_ms_Annual_out.loc[['Azores', 'Madeira'], 'ECTRL_ID_size'].sum() + per_ms_Annual_out.loc['Portugal', 'ECTRL_ID_size'])
-        multMa = per_ms_Annual_out.loc['Madeira', 'ECTRL_ID_size'] / \
-                 (per_ms_Annual_out.loc[['Azores', 'Madeira'], 'ECTRL_ID_size'].sum() + per_ms_Annual_out.loc['Portugal', 'ECTRL_ID_size'])
-        multPt = 1 - (multAz+multMa)
+        if 'Azores' in indexList and 'Madeira' in indexList:
+            # Merge Portugese Close regions
+            multAz = per_ms_Annual_out.loc['Azores', 'ECTRL_ID_size'] / \
+                     (per_ms_Annual_out.loc[['Azores', 'Madeira'], 'ECTRL_ID_size'].sum() + per_ms_Annual_out.loc['Portugal', 'ECTRL_ID_size'])
+            multMa = per_ms_Annual_out.loc['Madeira', 'ECTRL_ID_size'] / \
+                     (per_ms_Annual_out.loc[['Azores', 'Madeira'], 'ECTRL_ID_size'].sum() + per_ms_Annual_out.loc['Portugal', 'ECTRL_ID_size'])
+            multPt = 1 - (multAz+multMa)
 
-        per_ms_Annual_out.loc['Portugal', per_ms_Annual_out.columns.str.contains('mean|std|%')] = per_ms_Annual_out.loc['Portugal', per_ms_Annual_out.columns.str.contains('mean|std|%')] * multPt
-        azmaRow = per_ms_Annual_out.loc[['Azores', 'Madeira']]
+            per_ms_Annual_out.loc['Portugal', per_ms_Annual_out.columns.str.contains('mean|std|%')] = per_ms_Annual_out.loc['Portugal', per_ms_Annual_out.columns.str.contains('mean|std|%')] * multPt
+            azmaRow = per_ms_Annual_out.loc[['Azores', 'Madeira']]
 
-        azmaRow.loc['Azores', azmaRow.columns.str.contains('mean|std|%')] = azmaRow.loc['Azores', azmaRow.columns.str.contains('mean|std|%')] * multAz
-        azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] = azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] * multMa
-        per_ms_Annual_out.loc['Portugal'] = per_ms_Annual_out.loc['Portugal'] + azmaRow.loc['Azores'] + azmaRow.loc['Madeira']
+            azmaRow.loc['Azores', azmaRow.columns.str.contains('mean|std|%')] = azmaRow.loc['Azores', azmaRow.columns.str.contains('mean|std|%')] * multAz
+            azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] = azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] * multMa
+            per_ms_Annual_out.loc['Portugal'] = per_ms_Annual_out.loc['Portugal'] + azmaRow.loc['Azores'] + azmaRow.loc['Madeira']
 
     per_ms_Annual_out = per_ms_Annual_out.sort_values(by=['SAF_COST_mean'], ascending=False)
     per_ms_Annual_out = per_ms_Annual_out.round(2)
@@ -447,7 +458,7 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     figpairs = None
     _cols = None
     if groupSel=='ADEP_COUNTRY':
-        fig, figGDP, tab,_cols, figpairs = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df)
+        fig, figGDP, tab,_cols, figpairs, heatSelOptions, heatSelValue, countryPairTotal_df = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df, extrapolateRet)
     elif groupSel=='ADEP':
         fig, figGDP, tab,_cols, figpairs = update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , airportPairsTotal)
     elif groupSel == 'AC_Operator':
@@ -455,7 +466,10 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     else:
         fig, figGDP , tab, figpairs = None,None, None, None
 
-    return fig,figGDP, tab, _cols, figpairs
+
+
+    #return fig,figGDP, tab, _cols, figpairs, heatSelOptions, heatSelValue, countryPairTotal_df.to_json(date_format='iso', orient='split')
+    return fig, figGDP, tab, _cols, heatSelOptions, heatSelValue, countryPairTotal_df.to_json(date_format='iso', orient='split')
 
 def update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, airportPairsTotal):
 
@@ -568,15 +582,22 @@ def update_per_operator(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yea
 
     return fig, go.Figure(data=[go.Scatter(x=[], y=[])]), datatab, _col, go.Figure(data=[go.Scatter(x=[], y=[])])
 
-def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , countryPair):
+def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , countryPair, extrapolateRet):
     countryList = regions_df.query(fromSel.replace('ADEP_', '')).loc[:, 'COUNTRY'].tolist()
     rowLoc = fromSel.replace('(ADEP_', '').replace('=="Y")', '')
     gdpPerCountry.loc[rowLoc] = gdpPerCountry[gdpPerCountry.index.isin(countryList)].sum().tolist()
     per_ms_Annual_gdp = per_ms_Annual_out.join(gdpPerCountry, on='ADEP_COUNTRY', how='inner')
-    per_ms_Annual_gdp['TOTAL_GDP_RATIO'] = (per_ms_Annual_gdp['TOTAL_COST_sum']*2 / per_ms_Annual_gdp[yearGDP]) * 100
-    per_ms_Annual_gdp['SAF_GDP_RATIO'] = (per_ms_Annual_gdp['SAF_COST_sum']*2 / per_ms_Annual_gdp[yearGDP]) * 100
-    per_ms_Annual_gdp['ETS_GDP_RATIO'] = (per_ms_Annual_gdp['ETS_COST_sum']*2 / per_ms_Annual_gdp[yearGDP]) * 100
-    per_ms_Annual_gdp['TAX_GDP_RATIO'] = (per_ms_Annual_gdp['TAX_COST_sum']*2 / per_ms_Annual_gdp[yearGDP]) * 100
+
+    if 'Yes' in extrapolateRet:
+        retMult = 2
+    else:
+        retMult = 1
+
+
+    per_ms_Annual_gdp['TOTAL_GDP_RATIO'] = (per_ms_Annual_gdp['TOTAL_COST_sum']*retMult / per_ms_Annual_gdp[yearGDP]) * 100
+    per_ms_Annual_gdp['SAF_GDP_RATIO'] = (per_ms_Annual_gdp['SAF_COST_sum']*retMult / per_ms_Annual_gdp[yearGDP]) * 100
+    per_ms_Annual_gdp['ETS_GDP_RATIO'] = (per_ms_Annual_gdp['ETS_COST_sum']*retMult / per_ms_Annual_gdp[yearGDP]) * 100
+    per_ms_Annual_gdp['TAX_GDP_RATIO'] = (per_ms_Annual_gdp['TAX_COST_sum']*retMult / per_ms_Annual_gdp[yearGDP]) * 100
     data = [
         go.Bar(name='SAF',
                x=per_ms_Annual_out[groupSel],
@@ -673,9 +694,20 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
             countryPair.loc[rowName, rowName] = 0
 
     figPairs = px.imshow(countryPair, labels=dict(x="Destination Country",  y='Departure Country', color='Number of Flights'))
+    heatSelOptions =[{'label': i, 'value': i} for i in rowNames]
+    heatSelValue = [x['value'] for x in heatSelOptions]
 
+    return fig, figGDP, datatab, _col, figPairs, heatSelOptions, heatSelValue, countryPair
 
-    return fig, figGDP, datatab, _col, figPairs
+@app.callback(
+    dash.dependencies.Output("connHeatMap", "figure"),
+    [dash.dependencies.Input("heatSel", "value"),
+     dash.dependencies.State('heatMapdf', 'data')])
+def filter_heatmap(cols, jsonified_cleaned_data):
+    dff = pd.read_json(jsonified_cleaned_data, orient='split')
+    fig = px.imshow(dff.loc[cols,:])
+
+    return fig
 
 
 app.index_string = """<!DOCTYPE html>
@@ -711,5 +743,5 @@ app.index_string = """<!DOCTYPE html>
 </html>"""
 
 if __name__ == '__main__':
-   #app.run_server(debug=True)
-   application.run()
+   app.run_server(debug=True)
+   #application.run()
