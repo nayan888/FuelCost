@@ -166,7 +166,9 @@ app.layout = html.Div([
                 html.Div([html.P('Projection Year', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="yearGDP", type="number", placeholder=2025, min=2021, max=2080, step=1, value=2025,debounce=True ), ]),
                 html.Div([html.P('GDP Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="gdpGrowth", type="number", placeholder=1.09, min=-200, max=20, value=1.09, debounce=True), ]),
+                          dcc.Input(id="gdpGrowth", type="number", placeholder=1.09, min=0, max=20, value=1.09, debounce=True), ]),
+                html.Div([html.P('Flight Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
+                          dcc.Input(id="flightGrowth", type="number", placeholder=1.9, min=0, max=20, value=1.9, debounce=True), ]),
                 dcc.Checklist(id="extrapolateRet", options=[{'label': 'Extrapolate Return Leg', 'value': 'Yes'}], value=['Yes'])
 
             ], style=dict(display='flex', flexWrap='wrap', width='auto')),
@@ -245,12 +247,13 @@ application = app.server
      dash.dependencies.State('yearGDP', 'value'),
      dash.dependencies.State('gdpGrowth' ,'value'),
      dash.dependencies.Input('submitButton', 'n_clicks'),
-     dash.dependencies.State('extrapolateRet', 'value')
+     dash.dependencies.State('extrapolateRet', 'value'),
+     dash.dependencies.State('flightGrowth', 'value')
 
      ])
 def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice, taxRate,
                  emissionsPercent, emissionsPrice, outerCheck, yearSelected, groupSel,
-                 yearGDP, gdpGrowth, nclicks, extrapolateRet):
+                 yearGDP, gdpGrowth, nclicks, extrapolateRet, flightGrowth):
 
     if nclicks in [0, None]:
         raise PreventUpdate
@@ -453,10 +456,13 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     gdpPerCountry = pd.read_csv('data/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_2916952.csv', usecols=['COUNTRY', '2016', '2017', '2018', '2019', '2020'], index_col='COUNTRY')
 
     gdpPerCountry[yearGDP] = gdpPerCountry['2020'] * (1+ gdpGrowth/100)**(yearGDP-2020)
+    if flightGrowth>0 and yearGDP>2024:
+        per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] = per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] * (1+ flightGrowth/100)**(yearGDP-2024)
 
     figpairs = None
     _cols = None
     heatSelOptions, heatSelValue, PairTotal_df = [], [], None
+
     if groupSel=='ADEP_COUNTRY':
         fig, figGDP, tab,_cols, figpairs, heatSelOptions, heatSelValue, PairTotal_df = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df, extrapolateRet)
     elif groupSel=='ADEP':
@@ -594,6 +600,7 @@ def update_per_operator(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yea
     return fig, go.Figure(data=[go.Scatter(x=[], y=[])]), datatab, _col, go.Figure(data=[go.Scatter(x=[], y=[])])
 
 def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , countryPair, extrapolateRet):
+
     countryList = regions_df.query(fromSel.replace('ADEP_', '')).loc[:, 'COUNTRY'].tolist()
     rowLoc = fromSel.replace('(ADEP_', '').replace('=="Y")', '')
     gdpPerCountry.loc[rowLoc] = gdpPerCountry[gdpPerCountry.index.isin(countryList)].sum().tolist()
@@ -713,10 +720,12 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
 @app.callback(
     dash.dependencies.Output("connHeatMap", "figure"),
     [dash.dependencies.Input("heatSel", "value"),
-     dash.dependencies.State('heatMapdf', 'data')])
-def filter_heatmap(cols, jsonified_cleaned_data):
-    if jsonified_cleaned_data is None:
+     dash.dependencies.State('heatMapdf', 'data'),
+     dash.dependencies.State('groupSelection', 'value')])
+def filter_heatmap(cols, jsonified_cleaned_data, groupSel):
+    if jsonified_cleaned_data is None or groupSel=='AC_Operator':
         return go.Figure(data=[go.Scatter(x=[], y=[])])
+
 
     dff = pd.read_json(jsonified_cleaned_data, orient='split')
     if dff.empty is True:
