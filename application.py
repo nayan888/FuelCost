@@ -225,7 +225,6 @@ application = app.server
      dash.dependencies.Output('Gdp_graph', 'figure'),
      dash.dependencies.Output('table', 'data'),
      dash.dependencies.Output('table', 'columns'),
-     #dash.dependencies.Output('connHeatMap', 'figure'),
      dash.dependencies.Output('heatSel', 'options'),
      dash.dependencies.Output('heatSel', 'value'),
      dash.dependencies.Output('heatMapdf', 'data')
@@ -457,19 +456,23 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     figpairs = None
     _cols = None
+    heatSelOptions, heatSelValue, PairTotal_df = [], [], None
     if groupSel=='ADEP_COUNTRY':
-        fig, figGDP, tab,_cols, figpairs, heatSelOptions, heatSelValue, countryPairTotal_df = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df, extrapolateRet)
+        fig, figGDP, tab,_cols, figpairs, heatSelOptions, heatSelValue, PairTotal_df = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df, extrapolateRet)
     elif groupSel=='ADEP':
-        fig, figGDP, tab,_cols, figpairs = update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , airportPairsTotal)
+        fig, figGDP, tab,_cols, figpairs,heatSelOptions, heatSelValue, PairTotal_df = update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP , airportPairsTotal)
     elif groupSel == 'AC_Operator':
         fig, figGDP, tab,_cols, figpairs = update_per_operator(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP)
     else:
         fig, figGDP , tab, figpairs = None,None, None, None
 
+    if PairTotal_df is None:
+        PairTotal_df = pd.DataFrame()
 
+    PairTotal_df=PairTotal_df.to_json(date_format='iso', orient='split')
 
     #return fig,figGDP, tab, _cols, figpairs, heatSelOptions, heatSelValue, countryPairTotal_df.to_json(date_format='iso', orient='split')
-    return fig, figGDP, tab, _cols, heatSelOptions, heatSelValue, countryPairTotal_df.to_json(date_format='iso', orient='split')
+    return fig, figGDP, tab, _cols, heatSelOptions, heatSelValue, PairTotal_df
 
 def update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, airportPairsTotal):
 
@@ -525,7 +528,15 @@ def update_per_airport(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, year
     _col=[{"name": i, "id": i} for i in per_ms_Annual_out.columns]
     datatab=per_ms_Annual_out.to_dict('records')
 
-    return fig, go.Figure(data=[go.Scatter(x=[], y=[])]), datatab, _col, go.Figure(data=[go.Scatter(x=[], y=[])])
+
+    #update heatmap
+    rowNames = airportPairsTotal.index.tolist()
+
+    figPairs = px.imshow(airportPairsTotal, labels=dict(x="Destination Airport",  y='Departure Airport', color='Number of Flights'))
+    heatSelOptions =[{'label': i, 'value': i} for i in rowNames]
+    heatSelValue = [x['value'] for x in heatSelOptions][:10]
+
+    return fig, go.Figure(data=[go.Scatter(x=[], y=[])]), datatab, _col, go.Figure(data=[go.Scatter(x=[], y=[])]) , heatSelOptions, heatSelValue, airportPairsTotal
 
 def update_per_operator(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP):
     data = [
@@ -686,7 +697,7 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
     _col=[{"name": i, "id": i} for i in per_ms_Annual_out.columns]
     datatab=per_ms_Annual_out.to_dict('records')
 
-
+    #update heatmap
     rowNames = countryPair.index.tolist()
     colNames = countryPair.columns.tolist()
     for rowName in rowNames:
@@ -695,7 +706,7 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
 
     figPairs = px.imshow(countryPair, labels=dict(x="Destination Country",  y='Departure Country', color='Number of Flights'))
     heatSelOptions =[{'label': i, 'value': i} for i in rowNames]
-    heatSelValue = [x['value'] for x in heatSelOptions]
+    heatSelValue = [x['value'] for x in heatSelOptions][:10]
 
     return fig, figGDP, datatab, _col, figPairs, heatSelOptions, heatSelValue, countryPair
 
@@ -704,8 +715,19 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
     [dash.dependencies.Input("heatSel", "value"),
      dash.dependencies.State('heatMapdf', 'data')])
 def filter_heatmap(cols, jsonified_cleaned_data):
+    if jsonified_cleaned_data is None:
+        return go.Figure(data=[go.Scatter(x=[], y=[])])
+
     dff = pd.read_json(jsonified_cleaned_data, orient='split')
-    fig = px.imshow(dff.loc[cols,:])
+    if dff.empty is True:
+        return go.Figure(data=[go.Scatter(x=[], y=[])])
+
+    colset=set(cols)
+    dffcols = set(dff.columns)
+    finalCols = list(colset.intersection(dffcols))
+    newdf = dff.loc[cols,finalCols]
+    newdf = newdf.dropna(axis=1)
+    fig = px.imshow(newdf)
 
     return fig
 
@@ -743,5 +765,5 @@ app.index_string = """<!DOCTYPE html>
 </html>"""
 
 if __name__ == '__main__':
-   app.run_server(debug=True)
-   #application.run()
+   #app.run_server(debug=True)
+   application.run()
