@@ -8,6 +8,7 @@ from dash import dash_table
 from dash.exceptions import PreventUpdate
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 
 app = dash.Dash(__name__) #external_stylesheets=external_stylesheets)
 
@@ -166,10 +167,12 @@ app.layout = html.Div([
                 html.Div([html.P('Projection Year', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="yearGDP", type="number", placeholder=2025, min=2021, max=2080, step=1, value=2025,debounce=True ), ]),
                 html.Div([html.P('GDP Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="gdpGrowth", type="number", placeholder=1.09, min=0, max=20, value=1.09, debounce=True), ]),
-                html.Div([html.P('Flight Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="flightGrowth", type="number", placeholder=1.9, min=0, max=20, value=1.9, debounce=True), ]),
-                dcc.Checklist(id="extrapolateRet", options=[{'label': 'Extrapolate Return Leg', 'value': 'Yes'}], value=['Yes'])
+                          dcc.Input(id="gdpGrowth", type="number", placeholder=1.09, min=-20, max=20, value=1.09, debounce=True),
+                dcc.Checklist(id="extrapolateRet", options=[{'label': 'Extrapolate Return Leg', 'value': 'Yes'}], value=['Yes']),]),
+                html.Div([html.P('Flight Growth(%)', style={"height": "auto", "margin-bottom": "auto",}),
+                          dcc.Input(id="flightGrowth", type="number", placeholder=1.9, min=-20, max=20, value=1.9, debounce=True), ]),
+                html.Div([html.P('Emissions Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
+                          dcc.Input(id="emGrowth", type="number", placeholder=1, min=-20, max=20, value=1.0, debounce=True), ]),
 
             ], style=dict(display='flex', flexWrap='wrap', width='auto')),
 
@@ -248,12 +251,13 @@ application = app.server
      dash.dependencies.State('gdpGrowth' ,'value'),
      dash.dependencies.Input('submitButton', 'n_clicks'),
      dash.dependencies.State('extrapolateRet', 'value'),
-     dash.dependencies.State('flightGrowth', 'value')
+     dash.dependencies.State('flightGrowth', 'value'),
+     dash.dependencies.State('emGrowth', 'value')
 
      ])
 def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice, taxRate,
                  emissionsPercent, emissionsPrice, outerCheck, yearSelected, groupSel,
-                 yearGDP, gdpGrowth, nclicks, extrapolateRet, flightGrowth):
+                 yearGDP, gdpGrowth, nclicks, extrapolateRet, flightGrowth, emissionsGrowth):
 
     if nclicks in [0, None]:
         raise PreventUpdate
@@ -324,8 +328,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     per_ms_summer_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-        .groupby([groupSel])[['ECTRL_ID','FUEL', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
-        .agg({'ECTRL_ID': 'size', 'FUEL':'sum', 'SAF_COST': ['mean', 'std', 'sum'], 'FUEL_COST': ['mean', 'std', 'sum'],
+        .groupby([groupSel])[['ECTRL_ID','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
+        .agg({'ECTRL_ID': 'size', 'FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std', 'sum'], 'FUEL_COST': ['mean', 'std', 'sum'],
               'TOTAL_FUEL_COST': ['mean', 'std','sum'], 'TAX_COST': ['mean', 'std','sum'], 'ETS_COST': ['mean', 'std','sum'], 'TOTAL_COST': ['mean', 'std','sum']})
     per_ms_summer_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
@@ -336,8 +340,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     per_ms_winter_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-        .groupby([groupSel])[['ECTRL_ID','FUEL', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
-        .agg({'ECTRL_ID': 'size','FUEL':'sum', 'SAF_COST': ['mean', 'std','sum'], 'FUEL_COST': ['mean', 'std','sum'],
+        .groupby([groupSel])[['ECTRL_ID','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
+        .agg({'ECTRL_ID': 'size','FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std','sum'], 'FUEL_COST': ['mean', 'std','sum'],
               'TOTAL_FUEL_COST': ['mean', 'std','sum'], 'TAX_COST': ['mean', 'std','sum'], 'ETS_COST': ['mean', 'std','sum'], 'TOTAL_COST': ['mean', 'std','sum']})
 
     per_ms_winter_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
@@ -354,23 +358,23 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     per_ms_winter_out.loc[:, ~per_ms_winter_out.columns.str.contains('mean|std|%')] = per_ms_winter_out.loc[:, ~per_ms_winter_out.columns.str.contains('mean|std|%')] / dfRatio[1]
 
     per_ms_Annual_out = ((per_ms_summer_out * 7) + (per_ms_winter_out * 5))
-    #per_ms_Annual_out.columns = ["_".join(a) for a in per_ms_Annual_out.columns.to_flat_index()]
+
     per_ms_Annual_out.loc[:, per_ms_Annual_out.columns.str.contains('mean|std|%')] = per_ms_Annual_out.loc[:, per_ms_Annual_out.columns.str.contains('mean|std|%')] / 12
 
 
     #Calculate from selected region average
     sel_avg_quantiles_sum = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
     sel_avg_sum_sum = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
 
     selected_summer = sel_avg_quantiles_sum.T
     selected_summer['sum'] = (sel_avg_sum_sum.loc[:, 'sum']/dfRatio[0]).tolist()
 
     sel_avg_quantiles_win = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
     sel_avg_sum_win = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
 
     selected_winter = sel_avg_quantiles_win.T
     selected_winter['sum'] = (sel_avg_sum_win.loc[:, 'sum']/dfRatio[1]).tolist()
@@ -382,6 +386,7 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     per_ms_Annual_out.loc[defFromSelection] = (int(sel_ms_Annual.loc['SAF_COST', 'count']),
                                                sel_ms_Annual.loc['FUEL', 'sum'] ,
+                                               sel_ms_Annual.loc['EMISSIONS', 'sum'],
                                                sel_ms_Annual.loc['SAF_COST', 'mean'],
                                                sel_ms_Annual.loc['SAF_COST', 'std'],
                                                sel_ms_Annual.loc['SAF_COST', 'sum'],
@@ -446,18 +451,27 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
             azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] = azmaRow.loc['Madeira', azmaRow.columns.str.contains('mean|std|%')] * multMa
             per_ms_Annual_out.loc['Portugal'] = per_ms_Annual_out.loc['Portugal'] + azmaRow.loc['Azores'] + azmaRow.loc['Madeira']
 
+    gdpPerCountry = pd.read_csv('data/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_2916952.csv', usecols=['COUNTRY', '2016', '2017', '2018', '2019', '2020'], index_col='COUNTRY')
+
+    #calculate GDP Growth
+    gdpPerCountry[yearGDP] = gdpPerCountry['2020'] * (1+ gdpGrowth/100)**(yearGDP-2020)
+
+    #Calculate Flight Growth
+    if yearGDP>2024:
+        per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY|EMISSIONS')] = per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] * (1+ flightGrowth/100)**(yearGDP-2024)
+
+    #Calculate Emissions Growth
+    per_ms_Annual_out['EMISSIONS_sum'] = per_ms_Annual_out["EMISSIONS_sum"] * (1+ emissionsGrowth/100)**(yearGDP-2024)
+
+    per_ms_Annual_out['EMISSIONS_Percent'] = per_ms_Annual_out['EMISSIONS_sum'] / per_ms_Annual_out.loc[defFromSelection,'EMISSIONS_sum'] * 100
+
+
+
+    per_ms_Annual_out = per_ms_Annual_out.reset_index()
     per_ms_Annual_out = per_ms_Annual_out.sort_values(by=['SAF_COST_mean'], ascending=False)
     per_ms_Annual_out = per_ms_Annual_out.round(2)
     per_ms_Annual_out['ECTRL_ID_size'] = per_ms_Annual_out['ECTRL_ID_size'].astype(int)
     per_ms_Annual_out = per_ms_Annual_out.rename(columns={'ECTRL_ID_size': 'Flights_size'})
-
-    per_ms_Annual_out = per_ms_Annual_out.reset_index()
-
-    gdpPerCountry = pd.read_csv('data/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_2916952.csv', usecols=['COUNTRY', '2016', '2017', '2018', '2019', '2020'], index_col='COUNTRY')
-
-    gdpPerCountry[yearGDP] = gdpPerCountry['2020'] * (1+ gdpGrowth/100)**(yearGDP-2020)
-    if flightGrowth>0 and yearGDP>2024:
-        per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] = per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] * (1+ flightGrowth/100)**(yearGDP-2024)
 
     figpairs = None
     _cols = None
@@ -663,41 +677,65 @@ def update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP ,
     )
     fig = go.Figure(data=data, layout=layout)
     fig.update_yaxes(title_text='USD per Flight')
+
     per_ms_Annual_gdp = per_ms_Annual_gdp.sort_values(by=['TOTAL_GDP_RATIO'], ascending=False)
+
     dataGDP = [
         go.Bar(name='SAF',
                x=per_ms_Annual_gdp['ADEP_COUNTRY'],
                y=per_ms_Annual_gdp['SAF_GDP_RATIO'],
                # error_y=dict(type='data', array=per_ms_Annual_out['SAF_COST_std'].to_list()), text=per_ms_Annual_out['SAF_COST_mean']
                width=0.4,
-               offset=-0.4
+               offset=-0.4,
+               offsetgroup=1,
+               yaxis='y1'
                ),
         go.Bar(name='TAX',
                x=per_ms_Annual_gdp['ADEP_COUNTRY'],
                y=per_ms_Annual_gdp['TAX_GDP_RATIO'],
                width=0.4,
-               offset=-0.4
+               offset=-0.4,
+               offsetgroup=1,
+               yaxis='y1'
                ),
         go.Bar(name='ETS',
                x=per_ms_Annual_gdp['ADEP_COUNTRY'],
                y=per_ms_Annual_gdp['ETS_GDP_RATIO'],
                width=0.4,
-               offset=-0.4
+               offset=-0.4,
+               offsetgroup=1,
+               yaxis='y1'
                ),
         go.Bar(name='Total GDP Ratio of Measures',
                x=per_ms_Annual_gdp['ADEP_COUNTRY'],
                y=per_ms_Annual_gdp['TOTAL_GDP_RATIO'], visible='legendonly',
                width=0.4,
                offset=0.0,
-               base=0
-               )
+               base=0,
+               offsetgroup=1,
+               yaxis = 'y1'
+               ),
+        go.Scatter(name='Percent of total Emissions',
+                   x=per_ms_Annual_gdp['ADEP_COUNTRY'],
+                   y=per_ms_Annual_gdp['EMISSIONS_Percent'],
+                   yaxis='y2',
+                   mode= 'lines+markers',
+                   )
     ]
-    layoutGDP = go.Layout(
-        barmode='stack',
-        title='Burden on GDP of Fit For 55 Proposals'
+
+
+    layout = go.Layout(title='Impact on GDP and Emissions contribution per Country',
+                       yaxis=dict(title='Burden on GDP(%)'),
+                       yaxis2=dict(title='Percent of total Emissions',
+                                   overlaying='y',
+                                   side='right',
+                                   range =[0,20]),
+                       barmode='stack',
+                       legend = dict(yanchor="top", y=0.99, xanchor="right",x=1.21)
     )
-    figGDP = go.Figure(data=dataGDP, layout=layoutGDP)
-    figGDP.update_yaxes(title_text='Burden on GDP(%)')
+
+
+    figGDP= go.Figure(data=dataGDP, layout= layout)
 
 
     #update table
@@ -736,7 +774,8 @@ def filter_heatmap(cols, jsonified_cleaned_data, groupSel):
     finalCols = list(colset.intersection(dffcols))
     newdf = dff.loc[cols,finalCols]
     newdf = newdf.dropna(axis=1)
-    fig = px.imshow(newdf)
+    fig = px.imshow(newdf, labels=dict(x="Destination Country/Airport",  y='Departure Country/Airport', color='Number of Flights'))
+
 
     return fig
 
