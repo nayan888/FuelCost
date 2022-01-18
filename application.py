@@ -259,8 +259,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
                  emissionsPercent, emissionsPrice, outerCheck, yearSelected, groupSel,
                  yearGDP, gdpGrowth, nclicks, extrapolateRet, flightGrowth, emissionsGrowth):
 
-    if nclicks in [0, None]:
-        raise PreventUpdate
+    # if nclicks in [0, None]:
+    #     raise PreventUpdate
 
     flights_df = finalDf
     flights_df = ft.CalculateSAFCost(flights_df, costOfSafFuelPerKg = safPrice, safBlendingMandate = blending/100 )
@@ -476,6 +476,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     figpairs = None
     _cols = None
     heatSelOptions, heatSelValue, PairTotal_df = [], [], None
+
+    #fig = px.histogram(ms_df_outermost[ms_df_outermost['ADEP_EU_EEA_EFTA_UK']=='Y'], x="Actual_Distance_Flown")
 
     if groupSel=='ADEP_COUNTRY':
         fig, figGDP, tab,_cols, figpairs, heatSelOptions, heatSelValue, PairTotal_df = update_per_ms(fromSel, gdpPerCountry, groupSel, per_ms_Annual_out, yearGDP, countryPairTotal_df, extrapolateRet)
@@ -813,5 +815,5 @@ app.index_string = """<!DOCTYPE html>
 </html>"""
 
 if __name__ == '__main__':
-   #app.run_server(debug=True)
-   application.run()
+   app.run_server(debug=True)
+   #application.run()
