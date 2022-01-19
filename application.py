@@ -158,15 +158,15 @@ app.layout = html.Div([
                 html.Div([html.P('SAF Price(USD/kg)', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="safPrice", type="number", placeholder=3.66, value=3.66, min=0, debounce=True), ]),
                 html.Div([html.P('JetA1 Price(USD/kg)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="jetPrice", type="number", placeholder=0.61, value=0.61,min=0, debounce=True ), ]),
+                          dcc.Input(id="jetPrice", type="number", placeholder=0.81, value=0.81,min=0, debounce=True ), ]),
                 html.Div([html.P('Blending (%)', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="blendingMandate", type="number", placeholder=2, min=0, max=100, step=0.1, value=2,debounce=True ), ]),
                 html.Div([html.P('Tax rate(EURO/GJ)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="taxRate", type="number", placeholder=2.15, min=0, max=10.75, step=1.075, value=2.15,debounce=True ), ]),
+                          dcc.Input(id="taxRate", type="number", placeholder=2.15, min=0, max=10.75, value=2.15,debounce=True ), ]),
                 html.Div([html.P('ETS Price(EURO/tn) ', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="emissionsPrice", type="number", placeholder=62, min=0, max=1000, value=62,debounce=True ), ]),
+                          dcc.Input(id="emissionsPrice", type="number", placeholder=80, min=0, max=1000, value=80,debounce=True ), ]),
                 html.Div([html.P('Emissions (%)', style={"height": "auto", "margin-bottom": "auto"}),
-                          dcc.Input(id="emissionsPercent", type="number", placeholder=50, min=0, max=100, step=1, value=50, debounce=True), ]),
+                          dcc.Input(id="emissionsPercent", type="number", placeholder=55, min=0, max=100, step=1, value=55, debounce=True), ]),
                 html.Div([html.P('Projection Year', style={"height": "auto", "margin-bottom": "auto"}),
                           dcc.Input(id="yearGDP", type="number", placeholder=2025, min=2021, max=2080, step=1, value=2025,debounce=True ), ]),
                 html.Div([html.P('GDP Growth(%)', style={"height": "auto", "margin-bottom": "auto"}),
@@ -331,8 +331,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     per_ms_summer_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
-        .groupby([groupSel])[['ECTRL_ID','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
-        .agg({'ECTRL_ID': 'size', 'FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std', 'sum'], 'FUEL_COST': ['mean', 'std', 'sum'],
+        .groupby([groupSel])[['ECTRL_ID','Actual_Distance_Flown','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
+        .agg({'ECTRL_ID': 'size','Actual_Distance_Flown' : ['mean', 'std', 'sum'] , 'FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std', 'sum'], 'FUEL_COST': ['mean', 'std', 'sum'],
               'TOTAL_FUEL_COST': ['mean', 'std','sum'], 'TAX_COST': ['mean', 'std','sum'], 'ETS_COST': ['mean', 'std','sum'], 'TOTAL_COST': ['mean', 'std','sum']})
     per_ms_summer_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)] \
@@ -343,8 +343,8 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     per_ms_winter_out = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
             ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)] \
-        .groupby([groupSel])[['ECTRL_ID','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
-        .agg({'ECTRL_ID': 'size','FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std','sum'], 'FUEL_COST': ['mean', 'std','sum'],
+        .groupby([groupSel])[['ECTRL_ID','Actual_Distance_Flown','FUEL', 'EMISSIONS', 'SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']] \
+        .agg({'ECTRL_ID': 'size','Actual_Distance_Flown' : ['mean', 'std', 'sum'] ,'FUEL':'sum', 'EMISSIONS':'sum', 'SAF_COST': ['mean', 'std','sum'], 'FUEL_COST': ['mean', 'std','sum'],
               'TOTAL_FUEL_COST': ['mean', 'std','sum'], 'TAX_COST': ['mean', 'std','sum'], 'ETS_COST': ['mean', 'std','sum'], 'TOTAL_COST': ['mean', 'std','sum']})
 
     per_ms_winter_out_quantiles = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
@@ -367,17 +367,17 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     #Calculate from selected region average
     sel_avg_quantiles_sum = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['Actual_Distance_Flown', 'FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
     sel_avg_sum_sum = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= startSummerIATA) & (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] < endSummerIATA)][['Actual_Distance_Flown','FUEL', 'EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
 
     selected_summer = sel_avg_quantiles_sum.T
     selected_summer['sum'] = (sel_avg_sum_sum.loc[:, 'sum']/dfRatio[0]).tolist()
 
     sel_avg_quantiles_win = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['Actual_Distance_Flown','FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].describe()
     sel_avg_sum_win = ms_df_outermost[(ms_df_outermost['FILED_OFF_BLOCK_TIME'] < startSummerIATA) | (
-            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
+            ms_df_outermost['FILED_OFF_BLOCK_TIME'] >= endSummerIATA)][['Actual_Distance_Flown','FUEL','EMISSIONS','SAF_COST', 'FUEL_COST', 'TOTAL_FUEL_COST', 'TAX_COST', 'ETS_COST', 'TOTAL_COST']].sum().reset_index(name='sum')
 
     selected_winter = sel_avg_quantiles_win.T
     selected_winter['sum'] = (sel_avg_sum_win.loc[:, 'sum']/dfRatio[1]).tolist()
@@ -388,6 +388,9 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     sel_ms_Annual.loc[:, sel_ms_Annual.columns.str.contains('mean|std|%')] = sel_ms_Annual.loc[:, sel_ms_Annual.columns.str.contains('mean|std|%')] / 12
 
     per_ms_Annual_out.loc[defFromSelection] = (int(sel_ms_Annual.loc['SAF_COST', 'count']),
+                                               sel_ms_Annual.loc['Actual_Distance_Flown', 'mean'],
+                                               sel_ms_Annual.loc['Actual_Distance_Flown', 'std'],
+                                               sel_ms_Annual.loc['Actual_Distance_Flown', 'sum'],
                                                sel_ms_Annual.loc['FUEL', 'sum'] ,
                                                sel_ms_Annual.loc['EMISSIONS', 'sum'],
                                                sel_ms_Annual.loc['SAF_COST', 'mean'],
@@ -461,7 +464,7 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
 
     #Calculate Flight Growth
     if yearGDP>2024:
-        per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY|EMISSIONS')] = per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY')] * (1+ flightGrowth/100)**(yearGDP-2024)
+        per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY|EMISSIONS|Actual')] = per_ms_Annual_out.loc[:,~per_ms_Annual_out.columns.str.contains('mean|std|%|COUNTRY|EMISSIONS|Actual')] * (1+ flightGrowth/100)**(yearGDP-2024)
 
     #Calculate Emissions Growth
     per_ms_Annual_out['EMISSIONS_sum'] = per_ms_Annual_out["EMISSIONS_sum"] * (1+ emissionsGrowth/100)**(yearGDP-2024)
@@ -818,5 +821,5 @@ app.index_string = """<!DOCTYPE html>
 </html>"""
 
 if __name__ == '__main__':
-   app.run_server(debug=True)
-   #application.run()
+   #app.run_server(debug=True)
+   application.run()
