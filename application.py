@@ -133,8 +133,8 @@ app.layout = html.Div([
                     {'label': 'Close Outermost Regions', 'value': 'OUTER_CLOSE'},
                     {'label': 'Outermost Regions', 'value': 'OUTERMOST_REGIONS'}
 
-                ],
-                value='OUTER_CLOSE'
+                ] #,
+                #value='OUTER_CLOSE'
 
             ),
             html.P('Select Destination Region', style={"height": "auto", "margin-bottom": "auto"}),
