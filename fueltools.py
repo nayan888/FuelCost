@@ -143,7 +143,7 @@ def getDFRatio(dfMonthsSet):
 def getIATASeasons(setyear):
     startSummer = datetime(setyear, 3, 1) + relativedelta.relativedelta(day=31, weekday=relativedelta.SU(-1))
 
-    endSummer = datetime(2018, 10, 1) + relativedelta.relativedelta(day=31, hours=24,
+    endSummer = datetime(setyear, 10, 1) + relativedelta.relativedelta(day=31, hours=24,
                                                                     weekday=relativedelta.SA(-1)) + dt.timedelta(days=1)
 
     return startSummer, endSummer

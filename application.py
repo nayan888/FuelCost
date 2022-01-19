@@ -16,16 +16,21 @@ app.title='Fit for 55 Impact on Air Transport'
 
 pp.pre_process()
 
-dataYear = 2018
-flights_df = pp.loadDefaultDataset()
+#dataYear = 2018
 
-flights_df = ft.CalculateSAFCost(flights_df)
-flights_df = ft.CalculateFuelCost(flights_df)
-flights_df = ft.CalculateTotalFuelCost(flights_df)
-flights_df = ft.CalculateTaxCost(flights_df)
-flights_df = ft.CalculateETSCost(flights_df)
+dataSetSelection = ft.getYears()
+dataYear = max(dataSetSelection)
+flights_df={}
+for yearIn in dataSetSelection:
+    flights_df[yearIn] = pp.loadDefaultDataset(year=yearIn)
 
-flights_df['TOTAL_COST'] = flights_df['SAF_COST'] + flights_df['TAX_COST'] + flights_df['ETS_COST']
+    flights_df[yearIn] = ft.CalculateSAFCost(flights_df[yearIn])
+    flights_df[yearIn] = ft.CalculateFuelCost(flights_df[yearIn])
+    flights_df[yearIn] = ft.CalculateTotalFuelCost(flights_df[yearIn])
+    flights_df[yearIn] = ft.CalculateTaxCost(flights_df[yearIn])
+    flights_df[yearIn] = ft.CalculateETSCost(flights_df[yearIn])
+
+    flights_df[yearIn]['TOTAL_COST'] = flights_df[yearIn]['SAF_COST'] + flights_df[yearIn]['TAX_COST'] + flights_df[yearIn]['ETS_COST']
 
 regions_df = pd.read_excel('data/ICAOPrefix.xlsx')
 #default from selection
@@ -34,8 +39,6 @@ defFromSelection = fromSelection[3]
 
 finalDf=flights_df
 
-
-dataSetSelection = ft.getYears()
 dataSetPeriod = ft.getMonths()
 
 fromSelection = fromSelection + ['!' + x for x in fromSelection]
@@ -72,7 +75,7 @@ groupByDict = [
     { 'label' : 'Airline'   , 'value': 'AC_Operator' }
 ]
 
-marketSelection = flights_df.STATFOR_Market_Segment.unique().tolist()
+marketSelection = flights_df[dataYear].STATFOR_Market_Segment.unique().tolist()
 
 app.layout = html.Div([
     html.Div([
@@ -262,7 +265,7 @@ def update_graph(monthSel, fromSel, toSel, market, safPrice, blending, jetPrice,
     # if nclicks in [0, None]:
     #     raise PreventUpdate
 
-    flights_df = finalDf
+    flights_df = finalDf[yearSelected]
     flights_df = ft.CalculateSAFCost(flights_df, costOfSafFuelPerKg = safPrice, safBlendingMandate = blending/100 )
     flights_df = ft.CalculateFuelCost(flights_df, costOfJetFuelPerKg = jetPrice, safBlendingMandate = blending/100)
     flights_df = ft.CalculateTotalFuelCost(flights_df)
